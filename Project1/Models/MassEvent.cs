@@ -28,5 +28,7 @@ namespace Project1.Models
         public List<RecordDataHotel> RecordDataHotels { get; set; } = new();
 
         public List<DifferenceDataHotel> DifferenceDataHotels { get; set; } = new();
+
+        public List<Record> Records { get; set; } = new();
     }
 }

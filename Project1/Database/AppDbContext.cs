@@ -10,8 +10,7 @@ namespace Project1.Models
 
         public AppDbContext()
         {
-            Database.EnsureDeleted();
-            Database.EnsureCreated();
+            
         }
 
         public DbSet<User> Users { get; set; }
@@ -39,11 +38,11 @@ namespace Project1.Models
             
         }
 
-        //public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            optionsBuilder.UseNpgsql("Host=localhost;Port=5432;Database=usersdb;Username=postgres;Password=admin");
+            optionsBuilder.UseSqlServer("Data Source=DESKTOP-IROLH57;Initial Catalog=HotelDB;Integrated Security=True;Encrypt=False");
+
         }
     }
 }

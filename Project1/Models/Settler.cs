@@ -1,13 +1,14 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.Text.RegularExpressions;
 
 namespace Project1.Models
 {
     public class Settler
     {
         [Key]
-        public int Id { get; set; }
+        public Guid Id { get; set; }
 
-        public string Name { get; set; }
+        public string FirstName { get; set; }
 
         public string LastName { get; set; }
 
@@ -17,10 +18,11 @@ namespace Project1.Models
 
         public int AdditionalPeoples { get; set; }
 
-        [Required]
-        public int GroupId { get; set; }
+        public Guid GroupsId { get; set; }
 
-        public int preferred_type { get; set; }
+        public Groups? Groups { get; set; }
+
+        public string PreferredType { get; set; }
 
     }
 }

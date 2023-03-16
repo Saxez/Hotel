@@ -5,7 +5,7 @@ namespace Project1.Models
     public class RecordDataHotel
     {
         [Key]
-        public int Id { get; set; }
+        public Guid Id { get; set; }
 
         public int Type { get; set; }
 
@@ -14,18 +14,20 @@ namespace Project1.Models
         public int Price { get; set; }
 
         [Required]
-        public int HotelId { get; set; }
+        public Guid HotelId { get; set; }
         public Hotel? Hotel { get; set; }
 
         [Required]
-        public int MassEventId { get; set; } // внешний ключ
+        public Guid MassEventId { get; set; } // внешний ключ
         public MassEvent? MassEvent { get; set; } // навигационное свойство
 
         [Required]
-        public int UserId { get; set; }
+        public Guid UserId { get; set; }
+        public User? User { get; set; }
 
         [Required]
-        public int GroupId { get; set; }
+        public Guid GroupId { get; set; }
+        public Groups? Groups { get; set; }
 
     }
 }

@@ -14,14 +14,14 @@ namespace Project1.Models
 
         public string? Rules { get; set; }
 
-        public DateTime CheckIn { get; set; }
+        public TimeSpan CheckIn { get; set; }
 
-        public DateTime CheckOut { get; set; }
+        public TimeSpan CheckOut { get; set; }
 
         public int Stars { get; set; }
 
         [Required]
-        public int MassEventId { get; set; } // внешний ключ
+        public Guid MassEventId { get; set; } // внешний ключ
         public MassEvent? MassEvent { get; set; } // навигационное свойство
 
         public List<EnteredDataHotel> EnteredDataHotels { get; set; } = new();
@@ -32,5 +32,6 @@ namespace Project1.Models
 
         public List<UserXHotel> UserXHotels { get; set; } = new();
 
+        public List<Record> Records { get; set; } = new();
     }
 }

@@ -7,15 +7,15 @@ namespace Project1.Models
         [Key]
         public Guid Id { get; set; }
 
-        [Required]
         public int Count { get; set; }
 
-        [Required]
-        public int UserId { get; set; }
-        public User? User { get; set; }
+        public string Name { get; set; }
+        public User? Manager { get; set; }
+        public Guid ManagerId { get; set; }
 
-        [Required]
-        public int MassEventId { get; set; } // внешний ключ
+        public Guid MassEventId { get; set; } // внешний ключ
         public MassEvent? MassEvent { get; set; } // навигационное свойство
+
+        public List<Record> Records { get; set; } = new();
     }
 }

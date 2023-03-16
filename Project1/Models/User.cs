@@ -4,12 +4,11 @@ namespace Project1.Models
 {
     public class User
     {
-        //[Key]
         public Guid Id { get; set; }
 
-        public string? First_name { get; set; }
+        public string? FirstName { get; set; }
 
-        public string? Last_name { get; set; }
+        public string? LastName { get; set; }
 
         public string? Email { get; set; }
 
