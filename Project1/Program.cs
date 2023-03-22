@@ -13,6 +13,8 @@ using Project1.Database;
 using Project1.Migrations;
 using System.Collections.Generic;
 using System.Runtime.Intrinsics.X86;
+using Microsoft.OpenApi.Models;
+using Project1.Data;
 
 const string ACCESS_DENIED_PATH = "/accessdenied";
 const string LOGIN_MAP = "/login";
@@ -24,7 +26,6 @@ const string MY_GROUPS_MAP = "/my_groups";
 const string INFO_MAP = "/info";
 const string REG_USERS = "/reg_users";
 const string REG_SETTLERS = "/reg_settlers";
-
 
 const string LOGOUT_SIGN = "Data deleted";
 const string ACCESS_DENIED = "Access Denied";
@@ -44,6 +45,7 @@ const string MANAGER_ROLE = "manager";
 const string ADMIN_AND_MANAGER_ROLES = "admin, manager";
 const string MAIN_MANAGER_ROLE = "main_manager";
 const string ADMIN_AND_MAIN_MANAGER_ROLEs = "admin, main_manager";
+const int ACCESS_DENIED_CODE = 403;
 
 const string LOGIN_FORM = @"<!DOCTYPE html>
 <html>
@@ -121,21 +123,32 @@ string ConnectionS = Builder.Configuration.GetConnectionString("DefaultConnectio
 Builder.Services.AddDbContext<AppDbContext>(Options =>
     Options.UseSqlServer(ConnectionS));
 
-
 Builder.Services.AddAuthorization();
 
-InitData Init = new InitData(new AppDbContext());
+
+Builder.Services.AddDistributedMemoryCache();
+
+Builder.Services.AddSession(options =>
+{
+    options.IdleTimeout = TimeSpan.FromSeconds(10);
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+});
+
+//InitData Init = new InitData(new AppDbContext());
 
 
 Builder.Services.AddControllersWithViews();
+
 var App = Builder.Build();
 
 App.UseAuthentication();
 App.UseAuthorization();
+App.UseSession();
 
 App.MapGet(ACCESS_DENIED_PATH, async (HttpContext Context) =>
 {
-    Context.Response.StatusCode = 403;
+    Context.Response.StatusCode = ACCESS_DENIED_CODE;
     await Context.Response.WriteAsync(ACCESS_DENIED);
 });
 App.MapGet(LOGIN_MAP, async (HttpContext Context) =>
@@ -145,63 +158,63 @@ App.MapGet(LOGIN_MAP, async (HttpContext Context) =>
     await Context.Response.WriteAsync(LOGIN_FORM);
 });
 
-App.MapPost(LOGIN_MAP, async (string? returnUrl, HttpContext Context, AppDbContext Db) =>
+App.MapPost(LOGIN_MAP, async (string? returnUrl, HttpContext Context) =>
 {
-    var Form = Context.Request.Form;
-    if (!Form.ContainsKey(EMAIL) || !Form.ContainsKey(PASSWORD))
-        return Results.BadRequest(BAD_REQUEST_EMAIL_OR_PASSWORD);
-    string email = Form[EMAIL];
-    string password = Form[PASSWORD];
-
-    User? User = Db.Users.ToList().FirstOrDefault(p => p.Email == email && p.Password == password);
-
-    if (User is null) return Results.Unauthorized();
-    List<Claim> claims = new List<Claim>
+    using (var Db = new AppDbContext())
     {
-        new Claim(ClaimsIdentity.DefaultNameClaimType, User.Email),
-        new Claim(ClaimsIdentity.DefaultRoleClaimType, User.Role),
-        new Claim("Id", User.Id.ToString()),
-    };
-    ClaimsIdentity claimsIdentity = new ClaimsIdentity(claims, "Cookies");
-    ClaimsPrincipal claimsPrincipal = new ClaimsPrincipal(claimsIdentity);
-    await Context.SignInAsync(claimsPrincipal);
-    return Results.Redirect(returnUrl ?? INFO_MAP);
+        var Form = Context.Request.Form;
+        if (!Form.ContainsKey(EMAIL) || !Form.ContainsKey(PASSWORD))
+            return Results.BadRequest(BAD_REQUEST_EMAIL_OR_PASSWORD);
+        string email = Form[EMAIL];
+        string password = Form[PASSWORD];
+
+        User? User = Db.Users.ToList().FirstOrDefault(p => p.Email == email && p.Password == password);
+
+        if (User is null) return Results.Unauthorized();
+        List<Claim> claims = new List<Claim>
+        {
+            new Claim(ClaimsIdentity.DefaultNameClaimType, User.Email),
+            new Claim(ClaimsIdentity.DefaultRoleClaimType, User.Role),
+            new Claim("Id", User.Id.ToString()),
+        };
+        ClaimsIdentity claimsIdentity = new ClaimsIdentity(claims, "Cookies");
+        ClaimsPrincipal claimsPrincipal = new ClaimsPrincipal(claimsIdentity);
+        await Context.SignInAsync(claimsPrincipal);
+        return Results.Redirect(returnUrl ?? INFO_MAP);
+    }
 });
 
 App.MapGet(ADMIN_MAP, [Authorize(Roles = ADMIN_ROLE)] (AppDbContext Db) =>
 {
-    return (Db.Users.ToList());
+    return (Repository.GetAllUsers());
 });
 
 
-App.MapGet(HOTELS_MAP, [Authorize] (AppDbContext Db) =>
+App.MapGet(HOTELS_MAP, [Authorize] async() =>
 {
     string StringOut = "";
-    List<Hotel> Hotels = Db.Hotels.Include(u => u.MassEvent).ToList();
+    List<Hotel> Hotels = Repository.GetAllHotels();
     foreach (Hotel Hotel in Hotels)
-        StringOut = StringOut + ($"{Hotel.Name} - {Hotel.MassEvent?.Name} - {Hotel.MassEventId}");
+        StringOut = StringOut + ($"{Hotel.Name} - {Hotel.MassEvent?.Name}\n");
     return StringOut;
+
 });
 
 App.MapGet(EVENTS_MAP, (AppDbContext Db) =>
 {
     string StringOut = "";
-    List<MassEvent> MassEvents = Db.MassEvents.Include(c => c.Hotels).ToList();
+    List<MassEvent> MassEvents = Repository.GetAllEvents();
     foreach (MassEvent Event in MassEvents)
     {
         StringOut = StringOut + ($"\n Event : {Event.Name}");
-        foreach (Hotel Hotel in Event.Hotels)
-        {
-            StringOut = StringOut + ($" Hotel: {Hotel.Name}");
-        }
     }
     return StringOut;
 });
 
-App.MapGet(MY_GROUPS_MAP, [Authorize] (AppDbContext Db, HttpContext con) =>
+App.MapGet(MY_GROUPS_MAP, [Authorize] (AppDbContext Db, HttpContext Context) =>
 {
     string StringOut = "";
-    string id = con.User.FindFirstValue("Id");
+    string id = Context.User.FindFirstValue("Id");
     
     List<Groups> my_groups = Db.Groups.Include(group => group.Manager).Where(group => group!.Manager.Id.ToString() == id).ToList();
     foreach (Groups group in my_groups)
@@ -223,17 +236,7 @@ App.MapGet(LOGOUT_PATH, async (HttpContext Context) =>
     return LOGOUT_SIGN;
 });
 
-App.MapPost(REG_USERS, [Authorize(Roles = ADMIN_ROLE)] () =>
-
-    $"Hello reg_users!"
-);
-
-App.MapGet(REG_USERS, [Authorize(Roles = ADMIN_ROLE)] () =>
-
-    $"Hello reg_users!"
-);
-
-App.MapPost(REG_SETTLERS, [Authorize(Roles = (ADMIN_AND_AMBAS_ROLES))] async (string? returnUrl, HttpContext Context, AppDbContext Db) =>
+App.MapPost(REG_SETTLERS, [Authorize(Roles = (ADMIN_AND_MANAGER_ROLES))] async (string? returnUrl, HttpContext Context, AppDbContext Db) =>
 {
     var Form = Context.Request.Form;
     if (!Form.ContainsKey(FIRST_NAME) || !Form.ContainsKey(LAST_NAME) || !Form.ContainsKey(EMAIL) || !Form.ContainsKey(GENDER) || !Form.ContainsKey(ADDITIONAL_PEOPLE) || !Form.ContainsKey(PREFFERED_TYPE))
@@ -246,8 +249,7 @@ App.MapPost(REG_SETTLERS, [Authorize(Roles = (ADMIN_AND_AMBAS_ROLES))] async (st
     string PrefferedType = Form[PREFFERED_TYPE];
     int Gender = 0;
     if (GenderSt == "male") { Gender= 1; }
-    Groups Unallocated = Db.Groups.ToList().FirstOrDefault(g => g.Name == "Unallocated Settlers");
-    List<Groups> all = Db.Groups.ToList();
+    Groups Unallocated = Repository.GetUnallocatedGroup();
     Settler Settler = new Settler { FirstName = FirstName, LastName = LastName, AdditionalPeoples = Int32.Parse(AdditionalPeople), Email = Email, Gender = Gender, PreferredType = PrefferedType, Groups = Unallocated};
     Db.Settler.Add(Settler);
 
@@ -258,7 +260,7 @@ App.MapPost(REG_SETTLERS, [Authorize(Roles = (ADMIN_AND_AMBAS_ROLES))] async (st
 );
 
 
-App.MapGet(REG_SETTLERS, [Authorize(Roles = (ADMIN_AND_AMBAS_ROLES))] async(HttpContext Context) =>
+App.MapGet(REG_SETTLERS, [Authorize(Roles = (ADMIN_AND_MANAGER_ROLES))] async(HttpContext Context) =>
 {
     Context.Response.ContentType = CONTENT_TYPE;
 
