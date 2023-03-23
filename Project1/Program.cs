@@ -152,6 +152,7 @@ App.MapGet(ACCESS_DENIED_PATH, async (HttpContext Context) =>
     await Context.Response.WriteAsync(ACCESS_DENIED);
 });
 App.MapGet(LOGIN_MAP, async (HttpContext Context) =>
+
 {
     Context.Response.ContentType = CONTENT_TYPE;
 
@@ -165,10 +166,8 @@ App.MapPost(LOGIN_MAP, async (string? returnUrl, HttpContext Context) =>
         var Form = Context.Request.Form;
         if (!Form.ContainsKey(EMAIL) || !Form.ContainsKey(PASSWORD))
             return Results.BadRequest(BAD_REQUEST_EMAIL_OR_PASSWORD);
-        string email = Form[EMAIL];
-        string password = Form[PASSWORD];
-
-        User? User = Db.Users.ToList().FirstOrDefault(p => p.Email == email && p.Password == password);
+        
+        User? User = Repository.GetUserByEmailAndPassword(Form[EMAIL], Form[PASSWORD]);
 
         if (User is null) return Results.Unauthorized();
         List<Claim> claims = new List<Claim>
@@ -214,9 +213,7 @@ App.MapGet(EVENTS_MAP, (AppDbContext Db) =>
 App.MapGet(MY_GROUPS_MAP, [Authorize] (AppDbContext Db, HttpContext Context) =>
 {
     string StringOut = "";
-    string id = Context.User.FindFirstValue("Id");
-    
-    List<Groups> my_groups = Db.Groups.Include(group => group.Manager).Where(group => group!.Manager.Id.ToString() == id).ToList();
+    List<Groups> my_groups = Repository.GetGroupsByOwnerId(Context.User.FindFirstValue("Id"));
     foreach (Groups group in my_groups)
     {
         StringOut = StringOut + $"{group.Count} ;";
@@ -236,24 +233,13 @@ App.MapGet(LOGOUT_PATH, async (HttpContext Context) =>
     return LOGOUT_SIGN;
 });
 
-App.MapPost(REG_SETTLERS, [Authorize(Roles = (ADMIN_AND_MANAGER_ROLES))] async (string? returnUrl, HttpContext Context, AppDbContext Db) =>
+App.MapPost(REG_SETTLERS, [Authorize(Roles = (ADMIN_AND_MANAGER_ROLES))] async (string? returnUrl, HttpContext Context) =>
 {
     var Form = Context.Request.Form;
     if (!Form.ContainsKey(FIRST_NAME) || !Form.ContainsKey(LAST_NAME) || !Form.ContainsKey(EMAIL) || !Form.ContainsKey(GENDER) || !Form.ContainsKey(ADDITIONAL_PEOPLE) || !Form.ContainsKey(PREFFERED_TYPE))
         return Results.BadRequest(BAD_REQUEST_EMAIL_OR_PASSWORD);
-    string Email = Form[EMAIL];
-    string FirstName = Form[FIRST_NAME];
-    string LastName = Form[LAST_NAME];
-    string GenderSt = Form[GENDER];
-    string AdditionalPeople = Form[ADDITIONAL_PEOPLE];
-    string PrefferedType = Form[PREFFERED_TYPE];
-    int Gender = 0;
-    if (GenderSt == "male") { Gender= 1; }
-    Groups Unallocated = Repository.GetUnallocatedGroup();
-    Settler Settler = new Settler { FirstName = FirstName, LastName = LastName, AdditionalPeoples = Int32.Parse(AdditionalPeople), Email = Email, Gender = Gender, PreferredType = PrefferedType, Groups = Unallocated};
-    Db.Settler.Add(Settler);
+    Repository.AddSettler(Form[FIRST_NAME], Form[LAST_NAME], Int32.Parse(Form[ADDITIONAL_PEOPLE]), Form[EMAIL], Form[PREFFERED_TYPE]);
 
-    Db.SaveChanges();
 
     return Results.Redirect(returnUrl ?? INFO_MAP);
 }

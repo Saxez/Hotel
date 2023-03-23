@@ -14,8 +14,6 @@ namespace Project1.Models
 
         public string Email { get; set; }
 
-        public int Gender { get; set; }
-
         public int AdditionalPeoples { get; set; }
 
         public Guid GroupsId { get; set; }

@@ -28,7 +28,7 @@ namespace Project1.Database
             Hotel Hotel4 = new Hotel { Name = "Hotel 4", MassEvent = MassEvent2 };
             db.Hotels.AddRange(Hotel1, Hotel2, Hotel3, Hotel4);
 
-            Settler settler = new Settler { FirstName = "Set", LastName = "Ler", Email = "12@gmail.com", Gender = 1, Groups = UnallocatedSettlers, PreferredType = "econom" };
+            Settler settler = new Settler { FirstName = "Set", LastName = "Ler", Email = "12@gmail.com", Groups = UnallocatedSettlers, PreferredType = "econom" };
             db.Settler.AddRange(settler);
 
             db.SaveChanges();
